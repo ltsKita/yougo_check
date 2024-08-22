@@ -1,0 +1,4 @@
+yougo_check/
+__pycache__/
+*.pyc
+*.pyo
