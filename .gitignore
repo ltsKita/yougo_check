@@ -2,4 +2,6 @@ yougo_check/
 __pycache__/
 *.pyc
 *.pyo
-
+data/
+xml/
+xml_new/
