@@ -1,46 +1,22 @@
-import xml.etree.ElementTree as ET
-import MeCab
-
-# MeCabのトークナイザーを初期化
-mecab = MeCab.Tagger("-Ochasen")
+from lxml import etree as ET  # lxmlを使用
 
 # 名前空間の定義
 namespaces = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
 ET.register_namespace('w', namespaces['w'])  # 名前空間プレフィックスを指定
 
-def highlight_paragraph(paragraph):
+def highlight_text_element(text_element):
     """
-    段落<w:p>にハイライトを追加する関数
+    特定の<w:t>要素にハイライトを追加する関数
     """
-    for run in paragraph.findall('.//w:r', namespaces):
-        rpr = run.find('.//w:rPr', namespaces)
-        if rpr is None:
-            rpr = ET.Element('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}rPr')
-            run.insert(0, rpr)
-        ET.SubElement(rpr, '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}highlight', {'w:val': 'yellow'})
-    print(f"ハイライトが追加されました: {ET.tostring(paragraph, 'unicode')}")
-
-def process_text(text):
-    """
-    テキストに対してMeCabを用いた形態素解析を行い、「ホカ」と読める語句を判定
-    """
-    tokens = mecab.parse(text).splitlines()
-    for token in tokens:
-        if token == 'EOS':  # EOS(End of Sentence)は無視
-            continue
-
-        parts = token.split('\t')
-        if len(parts) < 4:
-            continue
-        
-        surface = parts[0]  # 表層形
-        pronunciation = parts[1]  # 読み仮名
-
-        if "ホカ" in pronunciation:
-            if surface != "ほか":
-                print(f"不適切な「ホカ」が検出されました: {surface}")
-                return True
-    return False
+    parent_run = text_element.getparent()  # getparent()メソッドが利用可能
+    rpr = parent_run.find('.//w:rPr', namespaces)
+    if rpr is None:
+        rpr = ET.Element('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}rPr')
+        parent_run.insert(0, rpr)
+    # ハイライトの要素を追加する
+    highlight_elem = ET.SubElement(rpr, '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}highlight')
+    highlight_elem.set('val', 'yellow')
+    print(f"ハイライトが追加されました: {ET.tostring(parent_run, pretty_print=True, encoding='unicode')}")
 
 def process_xml(xml_file):
     keyword_count = 0   # 処理対象となった要素をカウント
@@ -50,17 +26,32 @@ def process_xml(xml_file):
     root = tree.getroot()
 
     for paragraph in root.findall('.//w:p', namespaces):
-        for text_elem in paragraph.findall('.//w:t', namespaces):
-            text = text_elem.text
-            if text and any(keyword in text for keyword in ["とき", "時", "他", "外"]):
-                keyword_count += 1  # カウントを増加
-                processed_elements.append(text)  # 処理対象の要素をリストに追加
-                if process_text(text):
-                    highlight_paragraph(paragraph)
+        # <w:p>内部のすべての<w:t>要素を結合
+        full_text = "".join(text_elem.text for text_elem in paragraph.findall('.//w:t', namespaces) if text_elem.text)
+        
+        # デバッグ用: full_textを出力
+        print(f"結合されたテキスト: {full_text}")
 
-    tree.write(xml_file, encoding='utf-8', xml_declaration=True)
+        # 処理対象の文字列を含むかチェック
+        if any(keyword in full_text for keyword in ["とき", "時", "他", "外"]):
+            print(f"キーワードが見つかりました: {full_text}")
+            keyword_count += 1  # カウントを増加
+            processed_elements.append(full_text)  # 処理対象の要素をリストに追加
+
+            # キーワードを含む<w:t>要素にハイライトを追加
+            for text_elem in paragraph.findall('.//w:t', namespaces):
+                if text_elem.text and any(keyword in text_elem.text for keyword in ["とき", "時", "他", "外"]):
+                    print(f"ハイライト対象のテキスト: {text_elem.text}")
+                    highlight_text_element(text_elem)  # 該当の<w:t>要素にハイライトを追加
+
+    # 処理対象の要素リストが正しく格納されているかをデバッグ用に出力
+    print(f"最終的な処理対象の要素リスト: {processed_elements}")
+    
+    tree.write(xml_file, encoding='utf-8', xml_declaration=True, pretty_print=True)
     print(f"処理済みのXMLが {xml_file} に保存されました。")
     print(f"処理対象となった要素の数: {keyword_count}")  # カウントを出力
+
+    # 処理対象の要素リストを出力
     print("処理対象の要素リスト:")
     for element in processed_elements:
         print(element)  # 処理対象の要素を出力

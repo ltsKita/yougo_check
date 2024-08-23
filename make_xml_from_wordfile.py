@@ -25,7 +25,8 @@ def extract_docx_to_xml(docx_file, output_dir):
     print(f"{docx_file} を {output_dir} に展開しました。")
 
 
-# 使用例
-docx_file = get_docx_file("data")
-extract_docx_to_xml(docx_file, "xml/")
-extract_docx_to_xml(docx_file, "xml_new/")
+if __name__ == "__main__":
+    # 使用例
+    docx_file = get_docx_file("data")
+    extract_docx_to_xml(docx_file, "xml/")
+    extract_docx_to_xml(docx_file, "xml_new/")
