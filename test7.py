@@ -1,4 +1,4 @@
-# よう確認。他の検知ができている
+# 要確認。他の検知ができている
 
 from lxml import etree as ET  # lxmlを使用
 import MeCab  # MeCabを使用した形態素解析
