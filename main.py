@@ -42,7 +42,7 @@ def create_highlighted_run(original_rpr, text, color):
 
 def create_plain_run(original_rpr, text):
     """
-    元の<w:rPr>を保持しつつ、プレーンテキスト用の<w:r>要素を作成
+    元の<w:rPr>を保持しつつ、<w:r>要素を複製
     """
     plain_run = ET.Element('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}r')
     if original_rpr is not None:
@@ -80,8 +80,8 @@ def analyze_and_replace(text, log_file):
         log_file.write(f"表層形: {surface}, 読み仮名: {pronunciation}, 品詞: {pos}\n")
 
         # 「ほか」を意味するものを検知（例: 名詞「他」「外」など）
-        # 「そと」と読まれない場合にのみ「ほか」として検知する条件を追加
-        if (surface in ["他", "外"] and pos.startswith("名詞") and pronunciation != "ソト"):
+        # 「ソト」または「ガイ」と読まれない場合にのみ「ほか」として検知する条件を追加
+        if (surface in ["他", "外"] and pos.startswith("名詞") and pronunciation not in ["ソト", "ガイ"]):
             highlighted_runs.append((surface, "ほか", "yellow"))
             new_text += "ほか"
         else:
@@ -94,8 +94,8 @@ def analyze_and_replace(text, log_file):
 
 def syntactic_analysis_and_highlight(doc, original_rpr, syntax_log_file, combined_text, combined_pronunciation):
     """
-    spaCyを使用した構文解析を行い、「時」と「とき」の変換とハイライトを行う関数
-    形態素解析で表層形が「時」「とき」で、かつ読みが「ジ」でないものを対象とする
+    構文解析で「時」と「とき」の検知を行う関数
+    形態素解析で表層形が「時」「とき」で、かつ読みが「ジ」、「ガイ」でないものを対象とする
     構文解析結果を指定されたテキストファイルに書き出す
     """
     modified_text = []
@@ -122,9 +122,8 @@ def syntactic_analysis_and_highlight(doc, original_rpr, syntax_log_file, combine
         surface = token.text
         pronunciation = pronunciation_map.get(surface, "")
 
-        # 表層形が「時」または「とき」で、かつ読み方が「ジ」でないものを対象とする
         if surface in ["時", "とき"] and pronunciation == "トキ":
-            # 構文解析を行い、必要な処理を適用
+            # 構文解析を行い、副詞句である場合に変換を適用
             if token.dep_ == "obl" and surface == "時":
                 highlighted_runs.append((surface, "とき", "red"))
                 modified_text.append("とき")
@@ -143,7 +142,6 @@ def syntactic_analysis_and_highlight(doc, original_rpr, syntax_log_file, combine
 def split_and_highlight_text_element(text_element, log_file, syntax_log_file):
     """
     該当する<w:t>要素を切り分け、キーワードを含む部分にハイライトを追加する関数
-    形態素解析で「ほか」を意味する「他、外」を「ほか」に変換し、構文解析で「とき」と「時」をルールベースで変換してハイライトを適用
     """
     parent_run = text_element.getparent()
     original_rpr = parent_run.find('.//w:rPr', namespaces)  # 元の<w:rPr>情報を取得
@@ -191,6 +189,10 @@ def split_and_highlight_text_element(text_element, log_file, syntax_log_file):
     parent.remove(parent_run)
 
 def process_xml(xml_file, log_filename, syntax_log_filename):
+    """
+    xmlからテキストを取得し、対象文字列（「他」、「外」、「時」、「とき」）を検索
+    変換条件に一致する場合は変換を行い、ハイライトを付与
+    """
     keyword_count = 0   # 処理対象となった要素をカウント
     processed_elements = []  # 処理対象の要素を格納するリスト
 
@@ -200,18 +202,18 @@ def process_xml(xml_file, log_filename, syntax_log_filename):
         root = tree.getroot()
 
         for paragraph in root.findall('.//w:p', namespaces):
-            # <w:p>内部のすべての<w:t>要素を結合
+            # <w:t>要素を取得
             full_text = "".join(text_elem.text for text_elem in paragraph.findall('.//w:t', namespaces) if text_elem.text)
 
             # 処理対象の文字列を含むかチェック
             if any(keyword in full_text for keyword in ["とき", "時", "他", "外"]):
-                keyword_count += 1  # カウントを増加
+                keyword_count += 1  # カウントを増加(デバッグ用)
                 processed_elements.append(full_text)  # 処理対象の要素をリストに追加
 
                 # キーワードを含む<w:t>要素を切り分け、ハイライトを追加
                 for text_elem in paragraph.findall('.//w:t', namespaces):
                     if text_elem.text:
-                        split_and_highlight_text_element(text_elem, log_file, syntax_log_file)  # 「ほか」に変換後ハイライトを適用
+                        split_and_highlight_text_element(text_elem, log_file, syntax_log_file)  # 変換後にハイライトを適用
 
     tree.write(xml_file, encoding='utf-8', xml_declaration=True, pretty_print=True)
 
