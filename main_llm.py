@@ -1,6 +1,6 @@
 # docx_processing.py から関数をインポート
-from make_xml_from_wordfile import get_docx_file, extract_docx_to_xml
-from process import process_xml
+from make_xml_from_wordfile_llm import get_docx_file, extract_docx_to_xml
+from process_llm import process_xml
 from remake_wordfile_from_xml import create_docx
 import os
 

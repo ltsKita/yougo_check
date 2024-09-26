@@ -2,3 +2,8 @@ beautifulsoup4
 lxml
 mecab-python3
 spacy
+transformers
+torch
+langchain-huggingface
+langchain
+langchain-community
