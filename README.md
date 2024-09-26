@@ -4,6 +4,14 @@
 # 以下を入力してプログラムが存在するディレクトリに移動してください。
 cd /home/kita/yougo_check/
 
+# venv仮想環境を作成してください。
+python3 -m venv venv
+※venvは任意の名前を設定できます。その場合は python3 -m venv projectenv のように変更してください
+
+# venv仮想環境を有効化してください。
+source venv/bin/activate
+※venvに任意の名前を設定した場合は source projectenv/bin/activate のように変更してください。
+
 # 以下を入力して生成AIモデルをダウンロードしてください(初回に一度だけ実行してください)
 python model_download.py
 
